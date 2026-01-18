@@ -1,0 +1,31 @@
+# Binaries
+google-classroom
+google-classroom-*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+*.test.exe
+
+# Output of coverage
+coverage.out
+
+# Go workspace
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with credentials (not tracked, use config.json.example)
+config.json

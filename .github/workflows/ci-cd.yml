@@ -1,0 +1,118 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./... -v -cover -coverprofile=coverage.out
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+          fail_ci_if_error: false
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build for Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ github.sha }}" -o google-classroom-linux-amd64 ./cmd/google-classroom
+          ls -lh google-classroom-linux-amd64
+
+      - name: Build for macOS
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ github.sha }}" -o google-classroom-darwin-amd64 ./cmd/google-classroom
+          ls -lh google-classroom-darwin-amd64
+
+      - name: Build for Windows
+        run: |
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ github.sha }}" -o google-classroom-windows-amd64.exe ./cmd/google-classroom
+          ls -lh google-classroom-windows-amd64.exe
+
+      - name: Verify binary size
+        run: |
+          LINUX_SIZE=$(stat -c%s google-classroom-linux-amd64)
+          if [ $LINUX_SIZE -gt 20000000 ]; then
+            echo "Linux binary too large: $LINUX_SIZE bytes"
+            exit 1
+          fi
+          echo "All binaries under 20MB"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: |
+            google-classroom-linux-amd64
+            google-classroom-darwin-amd64
+            google-classroom-windows-amd64.exe
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries
+          path: release/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Run linter
+        run: golangci-lint run ./...

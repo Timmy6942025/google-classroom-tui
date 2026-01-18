@@ -1,0 +1,21 @@
+{
+  "oauth": {
+    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:8080/callback"
+  },
+  "cache": {
+    "enabled": true,
+    "ttl_courses": "5m",
+    "ttl_coursework": "1h",
+    "directory": "~/.cache/google-classroom"
+  },
+  "api": {
+    "rate_limit_backoff": "1s",
+    "max_retries": 3
+  },
+  "ui": {
+    "theme": "default",
+    "mouse_enabled": true
+  }
+}
